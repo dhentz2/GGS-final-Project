@@ -1,0 +1,1221 @@
+import sys
+!{sys.executable} -m pip install sentinelsat
+Requirement already satisfied: sentinelsat in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (1.1.1)
+Requirement already satisfied: click>=7.1 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (7.1.2)
+Requirement already satisfied: requests in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (2.27.1)
+Requirement already satisfied: tqdm>=4.58 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (4.62.3)
+Requirement already satisfied: html2text in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (2020.1.16)
+Requirement already satisfied: geomet in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (0.3.0)
+Requirement already satisfied: geojson>=2 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (2.5.0)
+Requirement already satisfied: six in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from geomet->sentinelsat) (1.16.0)
+Requirement already satisfied: certifi>=2017.4.17 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from requests->sentinelsat) (2021.10.8)
+Requirement already satisfied: idna<4,>=2.5 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from requests->sentinelsat) (3.3)
+Requirement already satisfied: urllib3<1.27,>=1.21.1 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from requests->sentinelsat) (1.26.8)
+Requirement already satisfied: charset-normalizer~=2.0.0 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from requests->sentinelsat) (2.0.12)
+In [5]:
+import sentinelsat
+In [6]:
+from sentinelsat import SentinelAPI, read_geojson, geojson_to_wkt
+from datetime import date
+In [7]:
+api = SentinelAPI('dhentz2', 'Gaylord99')
+api 
+Out[7]:
+<sentinelsat.sentinel.SentinelAPI at 0x11c7b2710>
+In [9]:
+my_geojson = {
+  "type": "Feature", #let's define our GeoJSON type. As it's a single geometry, it's just a single 'Feature'
+  "geometry": {
+    "type": "Polygon", #let's define our geometry type, which as we have a square, is a polygon.
+    "coordinates": [ #Here are our actual geometry coordinates
+      [
+        [
+          68.812382,
+         34.219189
+        ],
+        [
+          68.819538,
+          34.217792
+        ],
+        [
+          68.816402,
+          34.209082
+        ],
+        [
+          68.807798,
+          34.212074
+        ],
+        [
+          68.812382,
+          34.219189
+        ]
+      ],
+    ]
+  },
+    "properties": {'road': 'Kabul'}, #And an example geometry ID, although not strictly necessary for this task
+}
+
+my_geojson
+Out[9]:
+{'type': 'Feature',
+ 'geometry': {'type': 'Polygon',
+  'coordinates': [[[68.812382, 34.219189],
+    [68.819538, 34.217792],
+    [68.816402, 34.209082],
+    [68.807798, 34.212074],
+    [68.812382, 34.219189]]]},
+ 'properties': {'road': 'Kabul'}}
+In [10]:
+import geopandas as gpd
+
+my_geojson_to_write = []
+my_geojson_to_write.append(my_geojson)
+
+## Now we can specify a GeoDataFrame, providing the list of dicts and the CRS.
+my_geojson_to_write = gpd.GeoDataFrame.from_features(my_geojson_to_write, crs='epsg:4326') #3857
+
+## Finally, let's write this GeoDataFrame to a shapefile. 
+my_geojson_to_write.to_file('my_geojson_to_write.shp', crs='epsg:4326')
+In [11]:
+footprint = geojson_to_wkt(my_geojson)
+footprint
+Out[11]:
+'POLYGON((68.8124 34.2192,68.8195 34.2178,68.8164 34.2091,68.8078 34.2121,68.8124 34.2192))'
+In [30]:
+# Specify the products and associated characteristics
+products = api.query(
+    footprint,
+    platformname = 'Sentinel-2',
+    date = ('20220301', '20220307'),
+    cloudcoverpercentage = (0,15),
+    limit=1
+)
+
+# Now download them!!
+api.download_all(products)
+Downloading products:   0%|          | 0/1 [00:00<?, ?product/s]
+Downloading S2B_MSIL1C_20220302T060749_N0400_R134_T42SVC_20220302T082031.zip:   1%|          | 5.24M/859M [00:…
+MD5 checksumming:   0%|          | 0.00/80.7M [00:00<?, ?B/s]
+Invalid checksum. The downloaded file for 'S2B_MSIL1C_20220302T060749_N0400_R134_T42SVC_20220302T082031' is corrupted.
+Downloading S2B_MSIL1C_20220302T060749_N0400_R134_T42SVC_20220302T082031.zip:   0%|          | 0.00/859M [00:0…
+MD5 checksumming:   0%|          | 0.00/859M [00:00<?, ?B/s]
+Out[30]:
+ResultTuple(downloaded={'bec7b77d-8a30-44b5-85fc-be31eaa87a11': {'id': 'bec7b77d-8a30-44b5-85fc-be31eaa87a11', 'title': 'S2B_MSIL1C_20220302T060749_N0400_R134_T42SVC_20220302T082031', 'size': 858773664, 'md5': '6ba44a86b35093a152c490cfa436c18b', 'date': datetime.datetime(2022, 3, 2, 6, 7, 49, 24000), 'footprint': 'POLYGON((67.91241671620341 34.336833225651496,69.10611402643676 34.34161747897296,69.10489674610395 33.35131707782119,67.92488994172277 33.34670729944278,67.91241671620341 34.336833225651496))', 'url': "https://apihub.copernicus.eu/apihub/odata/v1/Products('bec7b77d-8a30-44b5-85fc-be31eaa87a11')/$value", 'Online': True, 'Creation Date': datetime.datetime(2022, 3, 2, 9, 39, 1, 589000), 'Ingestion Date': datetime.datetime(2022, 3, 2, 9, 38, 1, 360000), 'quicklook_url': "https://apihub.copernicus.eu/apihub/odata/v1/Products('bec7b77d-8a30-44b5-85fc-be31eaa87a11')/Products('Quicklook')/$value", 'path': 'S2B_MSIL1C_20220302T060749_N0400_R134_T42SVC_20220302T082031.zip', 'downloaded_bytes': 858773664}}, retrieval_triggered={}, failed={})
+In [1]:
+import sys
+!{sys.executable} -m pip install sentinelsat
+Requirement already satisfied: sentinelsat in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (1.1.1)
+Requirement already satisfied: html2text in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (2020.1.16)
+Requirement already satisfied: requests in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (2.27.1)
+Requirement already satisfied: geojson>=2 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (2.5.0)
+Requirement already satisfied: tqdm>=4.58 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (4.62.3)
+Requirement already satisfied: click>=7.1 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (7.1.2)
+Requirement already satisfied: geomet in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (0.3.0)
+Requirement already satisfied: six in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from geomet->sentinelsat) (1.16.0)
+Requirement already satisfied: certifi>=2017.4.17 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from requests->sentinelsat) (2021.10.8)
+Requirement already satisfied: idna<4,>=2.5 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from requests->sentinelsat) (3.3)
+Requirement already satisfied: urllib3<1.27,>=1.21.1 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from requests->sentinelsat) (1.26.8)
+Requirement already satisfied: charset-normalizer~=2.0.0 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from requests->sentinelsat) (2.0.12)
+In [2]:
+import sentinelsat
+In [3]:
+from sentinelsat import SentinelAPI, read_geojson, geojson_to_wkt
+from datetime import date
+In [4]:
+api = SentinelAPI('dhentz2', 'Gaylord99')
+api 
+Out[4]:
+<sentinelsat.sentinel.SentinelAPI at 0x1091289d0>
+In [5]:
+my_geojson = {
+  "type": "Feature", #let's define our GeoJSON type. As it's a single geometry, it's just a single 'Feature'
+  "geometry": {
+    "type": "Polygon", #let's define our geometry type, which as we have a square, is a polygon.
+    "coordinates": [ #Here are our actual geometry coordinates
+      [
+        [
+          69.252165,
+         34.946802
+        ],
+        [
+          69.260013,
+          34.954347
+        ],
+        [
+          69.271641,
+          34.949820
+        ],
+        [
+          69.265634,
+          34.941718
+        ],
+        [
+          69.252165,
+          34.946802
+        ]
+      ],
+    ]
+  },
+    "properties": {'road': 'Kabul'}, #And an example geometry ID, although not strictly necessary for this task
+}
+
+my_geojson
+Out[5]:
+{'type': 'Feature',
+ 'geometry': {'type': 'Polygon',
+  'coordinates': [[[69.252165, 34.946802],
+    [69.260013, 34.954347],
+    [69.271641, 34.94982],
+    [69.265634, 34.941718],
+    [69.252165, 34.946802]]]},
+ 'properties': {'road': 'Kabul'}}
+In [6]:
+import geopandas as gpd
+
+my_geojson_to_write = []
+my_geojson_to_write.append(my_geojson)
+
+## Now we can specify a GeoDataFrame, providing the list of dicts and the CRS.
+my_geojson_to_write = gpd.GeoDataFrame.from_features(my_geojson_to_write, crs='epsg:4326') #3857
+
+## Finally, let's write this GeoDataFrame to a shapefile. 
+my_geojson_to_write.to_file('my_geojson_to_write.shp', crs='epsg:4326')
+In [8]:
+footprint = geojson_to_wkt(my_geojson)
+footprint
+Out[8]:
+'POLYGON((69.2522 34.9468,69.2600 34.9543,69.2716 34.9498,69.2656 34.9417,69.2522 34.9468))'
+In [13]:
+# Specify the products and associated characteristics
+products = api.query(
+    footprint,
+    platformname = 'Sentinel-2',
+    date = ('20220301', '20220303'),
+    cloudcoverpercentage = (0,20),
+    limit=1
+)
+
+# Now download them!!
+api.download_all(products)
+Downloading products:   0%|          | 0/1 [00:00<?, ?product/s]
+Downloading S2B_MSIL1C_20220302T060749_N0400_R134_T42SWD_20220302T082031.zip:   0%|          | 3.15M/848M [00:…
+MD5 checksumming:   0%|          | 0.00/848M [00:00<?, ?B/s]
+Out[13]:
+ResultTuple(downloaded={'cfeb1b46-1df9-4bc4-bf43-ea7c01b6bdbc': {'id': 'cfeb1b46-1df9-4bc4-bf43-ea7c01b6bdbc', 'title': 'S2B_MSIL1C_20220302T060749_N0400_R134_T42SWD_20220302T082031', 'size': 847794515, 'md5': '089bcefba5f1e03d2c469f3842c17d17', 'date': datetime.datetime(2022, 3, 2, 6, 7, 49, 24000), 'footprint': 'POLYGON((70.1972812304193 34.598795808160986,70.19039105300881 34.57676912456895,70.1426425058891 34.43022896768435,70.13363957858607 34.40061958382599,70.0975475139889 34.28233074589591,70.08577868030564 34.24764176070691,68.99978278160762 34.252921588926846,68.99978017382745 35.243077712217236,70.20650672552767 35.237063890602194,70.1972812304193 34.598795808160986))', 'url': "https://apihub.copernicus.eu/apihub/odata/v1/Products('cfeb1b46-1df9-4bc4-bf43-ea7c01b6bdbc')/$value", 'Online': True, 'Creation Date': datetime.datetime(2022, 3, 2, 9, 39, 15, 139000), 'Ingestion Date': datetime.datetime(2022, 3, 2, 9, 38, 30, 881000), 'quicklook_url': "https://apihub.copernicus.eu/apihub/odata/v1/Products('cfeb1b46-1df9-4bc4-bf43-ea7c01b6bdbc')/Products('Quicklook')/$value", 'path': 'S2B_MSIL1C_20220302T060749_N0400_R134_T42SWD_20220302T082031.zip', 'downloaded_bytes': 844648787}}, retrieval_triggered={}, failed={})
+In [2]:
+import sys
+!{sys.executable} -m pip install sentinelsat
+Requirement already satisfied: sentinelsat in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (1.1.1)
+Requirement already satisfied: click>=7.1 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (7.1.2)
+Requirement already satisfied: html2text in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (2020.1.16)
+Requirement already satisfied: tqdm>=4.58 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (4.62.3)
+Requirement already satisfied: geomet in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (0.3.0)
+Requirement already satisfied: geojson>=2 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (2.5.0)
+Requirement already satisfied: requests in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from sentinelsat) (2.27.1)
+Requirement already satisfied: six in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from geomet->sentinelsat) (1.16.0)
+Requirement already satisfied: charset-normalizer~=2.0.0 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from requests->sentinelsat) (2.0.12)
+Requirement already satisfied: idna<4,>=2.5 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from requests->sentinelsat) (3.3)
+Requirement already satisfied: certifi>=2017.4.17 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from requests->sentinelsat) (2021.10.8)
+Requirement already satisfied: urllib3<1.27,>=1.21.1 in /opt/anaconda3/envs/sia/lib/python3.7/site-packages (from requests->sentinelsat) (1.26.8)
+In [3]:
+import sentinelsat
+In [4]:
+from sentinelsat import SentinelAPI, read_geojson, geojson_to_wkt
+from datetime import date
+In [5]:
+api = SentinelAPI('dhentz2', 'Gaylord99')
+api 
+Out[5]:
+<sentinelsat.sentinel.SentinelAPI at 0x1126fbd90>
+In [7]:
+my_geojson = {
+  "type": "Feature", #let's define our GeoJSON type. As it's a single geometry, it's just a single 'Feature'
+  "geometry": {
+    "type": "Polygon", #let's define our geometry type, which as we have a square, is a polygon.
+    "coordinates": [ #Here are our actual geometry coordinates
+      [
+        [
+          69.122538,
+         34.591338
+        ],
+        [
+          69.158449,
+          34.589705
+        ],
+        [
+          69.156246,
+          34.569571
+        ],
+        [
+          69.119674,
+          34.572111
+        ],
+        [
+          69.122538,
+          34.591338
+        ]
+      ],
+    ]
+  },
+    "properties": {'Kabul': 'city'}, #And an example geometry ID, although not strictly necessary for this task
+}
+
+my_geojson
+Out[7]:
+{'type': 'Feature',
+ 'geometry': {'type': 'Polygon',
+  'coordinates': [[[69.122538, 34.591338],
+    [69.158449, 34.589705],
+    [69.156246, 34.569571],
+    [69.119674, 34.572111],
+    [69.122538, 34.591338]]]},
+ 'properties': {'Kabul': 'city'}}
+In [8]:
+import geopandas as gpd
+
+my_geojson_to_write = []
+my_geojson_to_write.append(my_geojson)
+
+## Now we can specify a GeoDataFrame, providing the list of dicts and the CRS.
+my_geojson_to_write = gpd.GeoDataFrame.from_features(my_geojson_to_write, crs='epsg:4326') #3857
+
+## Finally, let's write this GeoDataFrame to a shapefile. 
+my_geojson_to_write.to_file('my_geojson_to_write.shp', crs='epsg:4326')
+In [9]:
+footprint = geojson_to_wkt(my_geojson)
+footprint
+Out[9]:
+'POLYGON((69.1225 34.5913,69.1584 34.5897,69.1562 34.5696,69.1197 34.5721,69.1225 34.5913))'
+In [11]:
+# Specify the products and associated characteristics
+products = api.query(
+    footprint,
+    platformname = 'Sentinel-2',
+    date = ('20220301', '20220303'),
+    cloudcoverpercentage = (0,20),
+    limit=1
+)
+
+# Now download them!!
+api.download_all(products)
+Downloading products:   0%|          | 0/1 [00:00<?, ?product/s]
+Out[11]:
+ResultTuple(downloaded={'cfeb1b46-1df9-4bc4-bf43-ea7c01b6bdbc': {'id': 'cfeb1b46-1df9-4bc4-bf43-ea7c01b6bdbc', 'title': 'S2B_MSIL1C_20220302T060749_N0400_R134_T42SWD_20220302T082031', 'size': 847794515, 'md5': '089bcefba5f1e03d2c469f3842c17d17', 'date': datetime.datetime(2022, 3, 2, 6, 7, 49, 24000), 'footprint': 'POLYGON((70.1972812304193 34.598795808160986,70.19039105300881 34.57676912456895,70.1426425058891 34.43022896768435,70.13363957858607 34.40061958382599,70.0975475139889 34.28233074589591,70.08577868030564 34.24764176070691,68.99978278160762 34.252921588926846,68.99978017382745 35.243077712217236,70.20650672552767 35.237063890602194,70.1972812304193 34.598795808160986))', 'url': "https://apihub.copernicus.eu/apihub/odata/v1/Products('cfeb1b46-1df9-4bc4-bf43-ea7c01b6bdbc')/$value", 'Online': True, 'Creation Date': datetime.datetime(2022, 3, 2, 9, 39, 15, 139000), 'Ingestion Date': datetime.datetime(2022, 3, 2, 9, 38, 30, 881000), 'quicklook_url': "https://apihub.copernicus.eu/apihub/odata/v1/Products('cfeb1b46-1df9-4bc4-bf43-ea7c01b6bdbc')/Products('Quicklook')/$value", 'path': 'S2B_MSIL1C_20220302T060749_N0400_R134_T42SWD_20220302T082031.zip', 'downloaded_bytes': 0}}, retrieval_triggered={}, failed={})
+In [35]:
+%matplotlib inline
+import rasterio
+import numpy
+import math
+from matplotlib import pyplot as plt
+
+# Our single 4 band (blue, green, red, NIR) PlanetScope image.
+# The CRS is a UTM projection using meters 
+image_file = "T42SWD_20220302T060749_B01.jp2"
+
+# Let's get our rasterio object:
+my_image = rasterio.open(image_file)
+my_image
+Out[35]:
+<open DatasetReader name='T42SWD_20220302T060749_B01.jp2' mode='r'>
+In [42]:
+## Import data visualization packages
+import matplotlib.pyplot as plt
+%matplotlib inline
+In [47]:
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+pd.__version__
+Out[47]:
+'1.3.5'
+In [48]:
+%matplotlib inline
+In [50]:
+# This is all code we have already covered!!
+# We are rerunning to ensure a clean reload
+
+# ------------------------------------------
+import numpy as np
+import rasterio
+
+def scale(band): # scale values for display purposes
+    return band #/ 10000.0
+
+image_filename = "Bagram_Jets_Before.tif.png"
+my_image = rasterio.open(image_filename)
+
+blue = scale(my_image.read(1))
+green = scale(my_image.read(2))
+red = scale(my_image.read(3))
+nir = scale(my_image.read(4))
+
+# Stack our bands into a numpy array
+rgb = np.dstack((red, green, blue)) 
+
+# ------------------------------------------
+
+# Check the shape
+rgb.shape 
+Out[50]:
+(316, 271, 3)
+In [51]:
+# Let's reorder our multidimensional array.
+# The numpy moveaxis function allows us to state:
+# - the data.
+# - the order we are labelling the data.
+# - the desired array order, using the labels we just defined.
+rgb_reordered = np.moveaxis(rgb, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+rgb_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[51]:
+(3, 316, 271)
+In [74]:
+with rasterio.open(
+    'rgb_true_colorBJ.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=rgb_reordered.shape[1],                  #specify the height of our image data
+    width=rgb_reordered.shape[2],                   #specify the width of our image data
+    count=rgb_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=rgb_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(rgb_reordered)       #write the data
+
+print('Finished writing rgb_reordered')
+Finished writing rgb_reordered
+In [53]:
+nrg = np.dstack((nir,red,green))
+nrg.shape
+nrg_reordered = np.moveaxis(nrg, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+nrg_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[53]:
+(3, 316, 271)
+In [54]:
+with rasterio.open(
+    'nrg_false_color.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=nrg_reordered.shape[1],                  #specify the height of our image data
+    width=nrg_reordered.shape[2],                   #specify the width of our image data
+    count=nrg_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=nrg_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(nrg_reordered)       #write the data
+
+print('Finished writing nrg_reordered')
+Finished writing nrg_reordered
+In [83]:
+# This is all code we have already covered!!
+# We are rerunning to ensure a clean reload
+
+# ------------------------------------------
+import numpy as np
+import rasterio
+
+def scale(band): # scale values for display purposes
+    return band #/ 10000.0
+
+image_filename = "Bagram_planesbefore.tif"
+my_image = rasterio.open(image_filename)
+
+blue = scale(my_image.read(1))
+green = scale(my_image.read(2))
+red = scale(my_image.read(3))
+nir = scale(my_image.read(4))
+
+# Stack our bands into a numpy array
+rgb = np.dstack((red, green, blue)) 
+
+# ------------------------------------------
+
+# Check the shape
+rgb.shape 
+Out[83]:
+(565, 866, 3)
+In [84]:
+# Let's reorder our multidimensional array.
+# The numpy moveaxis function allows us to state:
+# - the data.
+# - the order we are labelling the data.
+# - the desired array order, using the labels we just defined.
+rgb_reordered = np.moveaxis(rgb, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+rgb_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[84]:
+(3, 565, 866)
+In [85]:
+with rasterio.open(
+    'rgb_true_colorBPB.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=rgb_reordered.shape[1],                  #specify the height of our image data
+    width=rgb_reordered.shape[2],                   #specify the width of our image data
+    count=rgb_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=rgb_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(rgb_reordered)       #write the data
+
+print('Finished writing rgb_reordered')
+Finished writing rgb_reordered
+In [60]:
+nrg = np.dstack((nir,red,green))
+nrg.shape
+nrg_reordered = np.moveaxis(nrg, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+nrg_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[60]:
+(3, 565, 866)
+In [61]:
+with rasterio.open(
+    'nrg_false_color.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=nrg_reordered.shape[1],                  #specify the height of our image data
+    width=nrg_reordered.shape[2],                   #specify the width of our image data
+    count=nrg_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=nrg_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(nrg_reordered)       #write the data
+
+print('Finished writing nrg_reordered')
+Finished writing nrg_reordered
+In [79]:
+# This is all code we have already covered!!
+# We are rerunning to ensure a clean reload
+
+# ------------------------------------------
+import numpy as np
+import rasterio
+
+def scale(band): # scale values for display purposes
+    return band #/ 10000.0
+
+image_filename = "Bagram_planesafter.tif.png"
+my_image = rasterio.open(image_filename)
+
+blue = scale(my_image.read(1))
+green = scale(my_image.read(2))
+red = scale(my_image.read(3))
+nir = scale(my_image.read(4))
+
+# Stack our bands into a numpy array
+rgb = np.dstack((red, green, blue)) 
+
+# ------------------------------------------
+
+# Check the shape
+rgb.shape 
+Out[79]:
+(404, 498, 3)
+In [80]:
+# Let's reorder our multidimensional array.
+# The numpy moveaxis function allows us to state:
+# - the data.
+# - the order we are labelling the data.
+# - the desired array order, using the labels we just defined.
+rgb_reordered = np.moveaxis(rgb, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+rgb_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[80]:
+(3, 404, 498)
+In [82]:
+with rasterio.open(
+    'rgb_true_colorBPA.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=rgb_reordered.shape[1],                  #specify the height of our image data
+    width=rgb_reordered.shape[2],                   #specify the width of our image data
+    count=rgb_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=rgb_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(rgb_reordered)       #write the data
+
+print('Finished writing rgb_reordered')
+Finished writing rgb_reordered
+In [66]:
+nrg = np.dstack((nir,red,green))
+nrg.shape
+nrg_reordered = np.moveaxis(nrg, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+nrg_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[66]:
+(3, 404, 498)
+In [67]:
+with rasterio.open(
+    'nrg_false_color.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=nrg_reordered.shape[1],                  #specify the height of our image data
+    width=nrg_reordered.shape[2],                   #specify the width of our image data
+    count=nrg_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=nrg_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(nrg_reordered)       #write the data
+
+print('Finished writing nrg_reordered')
+Finished writing nrg_reordered
+In [127]:
+# This is all code we have already covered!!
+# We are rerunning to ensure a clean reload
+
+# ------------------------------------------
+import numpy as np
+import rasterio
+
+def scale(band): # scale values for display purposes
+    return band #/ 10000.0
+
+image_filename = "Bagram_helicopterbefore.tif"
+my_image = rasterio.open(image_filename)
+
+blue = scale(my_image.read(1))
+green = scale(my_image.read(2))
+red = scale(my_image.read(3))
+nir = scale(my_image.read(4))
+
+# Stack our bands into a numpy array
+rgb = np.dstack((red, green, blue)) 
+
+# ------------------------------------------
+
+# Check the shape
+rgb.shape 
+Out[127]:
+(383, 412, 3)
+In [128]:
+# Let's reorder our multidimensional array.
+# The numpy moveaxis function allows us to state:
+# - the data.
+# - the order we are labelling the data.
+# - the desired array order, using the labels we just defined.
+rgb_reordered = np.moveaxis(rgb, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+rgb_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[128]:
+(3, 383, 412)
+In [129]:
+with rasterio.open(
+    'rgb_true_colorBHB.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=rgb_reordered.shape[1],                  #specify the height of our image data
+    width=rgb_reordered.shape[2],                   #specify the width of our image data
+    count=rgb_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=rgb_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(rgb_reordered)       #write the data
+
+print('Finished writing rgb_reordered')
+Finished writing rgb_reordered
+In [130]:
+nrg = np.dstack((nir,red,green))
+nrg.shape
+nrg_reordered = np.moveaxis(nrg, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+nrg_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[130]:
+(3, 383, 412)
+In [131]:
+with rasterio.open(
+    'nrg_false_colorBHB.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=nrg_reordered.shape[1],                  #specify the height of our image data
+    width=nrg_reordered.shape[2],                   #specify the width of our image data
+    count=nrg_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=nrg_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(nrg_reordered)       #write the data
+
+print('Finished writing nrg_reordered')
+Finished writing nrg_reordered
+In [95]:
+# This is all code we have already covered!!
+# We are rerunning to ensure a clean reload
+
+# ------------------------------------------
+import numpy as np
+import rasterio
+
+def scale(band): # scale values for display purposes
+    return band #/ 10000.0
+
+image_filename = "Bagram_helicoptersafter.tif.png"
+my_image = rasterio.open(image_filename)
+
+blue = scale(my_image.read(1))
+green = scale(my_image.read(2))
+red = scale(my_image.read(3))
+nir = scale(my_image.read(4))
+
+# Stack our bands into a numpy array
+rgb = np.dstack((red, green, blue)) 
+
+# ------------------------------------------
+
+# Check the shape
+rgb.shape 
+Out[95]:
+(335, 395, 3)
+In [90]:
+# Let's reorder our multidimensional array.
+# The numpy moveaxis function allows us to state:
+# - the data.
+# - the order we are labelling the data.
+# - the desired array order, using the labels we just defined.
+rgb_reordered = np.moveaxis(rgb, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+rgb_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[90]:
+(3, 335, 395)
+In [92]:
+with rasterio.open(
+    'rgb_true_colorBHA.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=rgb_reordered.shape[1],                  #specify the height of our image data
+    width=rgb_reordered.shape[2],                   #specify the width of our image data
+    count=rgb_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=rgb_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(rgb_reordered)       #write the data
+
+print('Finished writing rgb_reordered')
+Finished writing rgb_reordered
+In [96]:
+nrg = np.dstack((nir,red,green))
+nrg.shape
+nrg_reordered = np.moveaxis(nrg, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+nrg_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[96]:
+(3, 335, 395)
+In [97]:
+with rasterio.open(
+    'nrg_false_colorBHA.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=nrg_reordered.shape[1],                  #specify the height of our image data
+    width=nrg_reordered.shape[2],                   #specify the width of our image data
+    count=nrg_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=nrg_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(nrg_reordered)       #write the data
+
+print('Finished writing nrg_reordered')
+Finished writing nrg_reordered
+In [98]:
+# This is all code we have already covered!!
+# We are rerunning to ensure a clean reload
+
+# ------------------------------------------
+import numpy as np
+import rasterio
+
+def scale(band): # scale values for display purposes
+    return band #/ 10000.0
+
+image_filename = "Bagram_suppliesbefore.tif.png"
+my_image = rasterio.open(image_filename)
+
+blue = scale(my_image.read(1))
+green = scale(my_image.read(2))
+red = scale(my_image.read(3))
+nir = scale(my_image.read(4))
+
+# Stack our bands into a numpy array
+rgb = np.dstack((red, green, blue)) 
+
+# ------------------------------------------
+
+# Check the shape
+rgb.shape 
+Out[98]:
+(379, 411, 3)
+In [100]:
+# Let's reorder our multidimensional array.
+# The numpy moveaxis function allows us to state:
+# - the data.
+# - the order we are labelling the data.
+# - the desired array order, using the labels we just defined.
+rgb_reordered = np.moveaxis(rgb, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+rgb_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[100]:
+(3, 379, 411)
+In [102]:
+with rasterio.open(
+    'rgb_true_colorBSB.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=rgb_reordered.shape[1],                  #specify the height of our image data
+    width=rgb_reordered.shape[2],                   #specify the width of our image data
+    count=rgb_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=rgb_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(rgb_reordered)       #write the data
+
+print('Finished writing rgb_reordered')
+Finished writing rgb_reordered
+In [104]:
+nrg = np.dstack((nir,red,green))
+nrg.shape
+nrg_reordered = np.moveaxis(nrg, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+nrg_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[104]:
+(3, 379, 411)
+In [106]:
+with rasterio.open(
+    'nrg_false_colorBSB.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=nrg_reordered.shape[1],                  #specify the height of our image data
+    width=nrg_reordered.shape[2],                   #specify the width of our image data
+    count=nrg_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=nrg_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(nrg_reordered)       #write the data
+
+print('Finished writing nrg_reordered')
+Finished writing nrg_reordered
+In [107]:
+# This is all code we have already covered!!
+# We are rerunning to ensure a clean reload
+
+# ------------------------------------------
+import numpy as np
+import rasterio
+
+def scale(band): # scale values for display purposes
+    return band #/ 10000.0
+
+image_filename = "Bagram_suppliesafter.tif.png"
+my_image = rasterio.open(image_filename)
+
+blue = scale(my_image.read(1))
+green = scale(my_image.read(2))
+red = scale(my_image.read(3))
+nir = scale(my_image.read(4))
+
+# Stack our bands into a numpy array
+rgb = np.dstack((red, green, blue)) 
+
+# ------------------------------------------
+
+# Check the shape
+rgb.shape 
+Out[107]:
+(342, 447, 3)
+In [108]:
+# Let's reorder our multidimensional array.
+# The numpy moveaxis function allows us to state:
+# - the data.
+# - the order we are labelling the data.
+# - the desired array order, using the labels we just defined.
+rgb_reordered = np.moveaxis(rgb, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+rgb_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[108]:
+(3, 342, 447)
+In [109]:
+with rasterio.open(
+    'rgb_true_colorBSA.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=rgb_reordered.shape[1],                  #specify the height of our image data
+    width=rgb_reordered.shape[2],                   #specify the width of our image data
+    count=rgb_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=rgb_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(rgb_reordered)       #write the data
+
+print('Finished writing rgb_reordered')
+Finished writing rgb_reordered
+In [110]:
+nrg = np.dstack((nir,red,green))
+nrg.shape
+nrg_reordered = np.moveaxis(nrg, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+nrg_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[110]:
+(3, 342, 447)
+In [112]:
+with rasterio.open(
+    'nrg_false_colorBSA.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=nrg_reordered.shape[1],                  #specify the height of our image data
+    width=nrg_reordered.shape[2],                   #specify the width of our image data
+    count=nrg_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=nrg_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(nrg_reordered)       #write the data
+
+print('Finished writing nrg_reordered')
+Finished writing nrg_reordered
+In [113]:
+# This is all code we have already covered!!
+# We are rerunning to ensure a clean reload
+
+# ------------------------------------------
+import numpy as np
+import rasterio
+
+def scale(band): # scale values for display purposes
+    return band #/ 10000.0
+
+image_filename = "TotalBagram_after.tif.png"
+my_image = rasterio.open(image_filename)
+
+blue = scale(my_image.read(1))
+green = scale(my_image.read(2))
+red = scale(my_image.read(3))
+nir = scale(my_image.read(4))
+
+# Stack our bands into a numpy array
+rgb = np.dstack((red, green, blue)) 
+
+# ------------------------------------------
+
+# Check the shape
+rgb.shape 
+Out[113]:
+(510, 815, 3)
+In [114]:
+# Let's reorder our multidimensional array.
+# The numpy moveaxis function allows us to state:
+# - the data.
+# - the order we are labelling the data.
+# - the desired array order, using the labels we just defined.
+rgb_reordered = np.moveaxis(rgb, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+rgb_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[114]:
+(3, 510, 815)
+In [116]:
+with rasterio.open(
+    'rgb_true_colorTBA.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=rgb_reordered.shape[1],                  #specify the height of our image data
+    width=rgb_reordered.shape[2],                   #specify the width of our image data
+    count=rgb_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=rgb_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(rgb_reordered)       #write the data
+
+print('Finished writing rgb_reordered')
+Finished writing rgb_reordered
+In [117]:
+nrg = np.dstack((nir,red,green))
+nrg.shape
+nrg_reordered = np.moveaxis(nrg, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+nrg_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[117]:
+(3, 510, 815)
+In [119]:
+with rasterio.open(
+    'nrg_false_colorTBA.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=nrg_reordered.shape[1],                  #specify the height of our image data
+    width=nrg_reordered.shape[2],                   #specify the width of our image data
+    count=nrg_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=nrg_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(nrg_reordered)       #write the data
+
+print('Finished writing nrg_reordered')
+Finished writing nrg_reordered
+In [121]:
+# This is all code we have already covered!!
+# We are rerunning to ensure a clean reload
+
+# ------------------------------------------
+import numpy as np
+import rasterio
+
+def scale(band): # scale values for display purposes
+    return band #/ 10000.0
+
+image_filename = "TotalBagram_before.tif.png"
+my_image = rasterio.open(image_filename)
+
+blue = scale(my_image.read(1))
+green = scale(my_image.read(2))
+red = scale(my_image.read(3))
+nir = scale(my_image.read(4))
+
+# Stack our bands into a numpy array
+rgb = np.dstack((red, green, blue)) 
+
+# ------------------------------------------
+
+# Check the shape
+rgb.shape 
+Out[121]:
+(497, 753, 3)
+In [122]:
+# Let's reorder our multidimensional array.
+# The numpy moveaxis function allows us to state:
+# - the data.
+# - the order we are labelling the data.
+# - the desired array order, using the labels we just defined.
+rgb_reordered = np.moveaxis(rgb, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+rgb_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[122]:
+(3, 497, 753)
+In [124]:
+with rasterio.open(
+    'rgb_true_colorTBB.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=rgb_reordered.shape[1],                  #specify the height of our image data
+    width=rgb_reordered.shape[2],                   #specify the width of our image data
+    count=rgb_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=rgb_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(rgb_reordered)       #write the data
+
+print('Finished writing rgb_reordered')
+Finished writing rgb_reordered
+In [125]:
+nrg = np.dstack((nir,red,green))
+nrg.shape
+nrg_reordered = np.moveaxis(nrg, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+nrg_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[125]:
+(3, 497, 753)
+In [132]:
+with rasterio.open(
+    'nrg_false_colorTBB.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=nrg_reordered.shape[1],                  #specify the height of our image data
+    width=nrg_reordered.shape[2],                   #specify the width of our image data
+    count=nrg_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=nrg_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(nrg_reordered)       #write the data
+
+print('Finished writing nrg_reordered')
+Finished writing nrg_reordered
+In [147]:
+# We are rerunning to ensure a clean reload
+
+# ------------------------------------------
+import numpy as np
+import rasterio
+
+def scale(band): # scale values for display purposes
+    return band #/ 10000.0
+
+image_filename = "Bagram_Jets_Before.tif.png"
+my_image = rasterio.open(image_filename)
+
+blue = scale(my_image.read(1))
+green = scale(my_image.read(2))
+red = scale(my_image.read(3))
+nir = scale(my_image.read(4))
+
+# Stack our bands into a numpy array
+rgb = np.dstack((red, green, blue)) 
+
+# ------------------------------------------
+
+# Check the shape
+rgb.shape 
+Out[147]:
+(316, 271, 3)
+In [148]:
+# Let's reorder our multidimensional array.
+# The numpy moveaxis function allows us to state:
+# - the data.
+# - the order we are labelling the data.
+# - the desired array order, using the labels we just defined.
+rgb_reordered = np.moveaxis(rgb, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+rgb_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[148]:
+(3, 316, 271)
+In [149]:
+with rasterio.open(
+    'rgb_true_colorBJBefore.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=rgb_reordered.shape[1],                  #specify the height of our image data
+    width=rgb_reordered.shape[2],                   #specify the width of our image data
+    count=rgb_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=rgb_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(rgb_reordered)       #write the data
+
+print('Finished writing rgb_reordered')
+Finished writing rgb_reordered
+In [137]:
+nrg = np.dstack((nir,red,green))
+nrg.shape
+nrg_reordered = np.moveaxis(nrg, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+nrg_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[137]:
+(3, 316, 271)
+In [138]:
+with rasterio.open(
+    'nrg_false_colorBJA.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=nrg_reordered.shape[1],                  #specify the height of our image data
+    width=nrg_reordered.shape[2],                   #specify the width of our image data
+    count=nrg_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=nrg_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(nrg_reordered)       #write the data
+
+print('Finished writing nrg_reordered')
+Finished writing nrg_reordered
+In [141]:
+# We are rerunning to ensure a clean reload
+
+# ------------------------------------------
+import numpy as np
+import rasterio
+
+def scale(band): # scale values for display purposes
+    return band #/ 10000.0
+
+image_filename = "Bagram_jetsafter.png"
+my_image = rasterio.open(image_filename)
+
+blue = scale(my_image.read(1))
+green = scale(my_image.read(2))
+red = scale(my_image.read(3))
+nir = scale(my_image.read(4))
+
+# Stack our bands into a numpy array
+rgb = np.dstack((red, green, blue)) 
+
+# ------------------------------------------
+
+# Check the shape
+rgb.shape 
+Out[141]:
+(225, 258, 3)
+In [142]:
+# Let's reorder our multidimensional array.
+# The numpy moveaxis function allows us to state:
+# - the data.
+# - the order we are labelling the data.
+# - the desired array order, using the labels we just defined.
+rgb_reordered = np.moveaxis(rgb, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+rgb_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[142]:
+(3, 225, 258)
+In [144]:
+with rasterio.open(
+    'rgb_true_colorBJA.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=rgb_reordered.shape[1],                  #specify the height of our image data
+    width=rgb_reordered.shape[2],                   #specify the width of our image data
+    count=rgb_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=rgb_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(rgb_reordered)       #write the data
+
+print('Finished writing rgb_reordered')
+Finished writing rgb_reordered
+In [145]:
+nrg = np.dstack((nir,red,green))
+nrg.shape
+nrg_reordered = np.moveaxis(nrg, [0, 1, 2], [1, 2, 0])
+
+# Check the shape. 
+nrg_reordered.shape # Now we should have bands, rows and columns (3, 4213, 8341, ):
+Out[145]:
+(3, 225, 258)
+In [146]:
+with rasterio.open(
+    'nrg_false_colorBJA.tif',                           #our filename
+    'w',                                            #write mode
+    driver='GTiff',                                 #write a GeoTIFF
+    height=nrg_reordered.shape[1],                  #specify the height of our image data
+    width=nrg_reordered.shape[2],                   #specify the width of our image data
+    count=nrg_reordered.shape[0],                   #number of bands present (e.g. )
+    dtype=nrg_reordered.dtype,                      #data type
+    crs=my_image.profile['crs'],                    #coordinate reference system
+    transform=my_image.profile['transform']         #affine geometry transform information
+    ) as my_raster_writer:
+        my_raster_writer.write(nrg_reordered)       #write the data
+
+print('Finished writing nrg_reordered')
+Finished writing nrg_reordered
